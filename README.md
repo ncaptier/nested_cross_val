@@ -7,7 +7,7 @@ Our implementation stands out from already existing ones for three main reasons 
 * It gives access to the fitted estimators and their attributes. Therefore the user can add scores without having to refit the whole model or run different analyses with the attributes of each estimator (ex : feature importance analysis through a stability study). 
 * It provides some plotting tools to visualize and analyze easily the results of the nested cross-validation (see [here](https://github.com/ncaptier/nested_cross_val/tree/main/nested_cross_val/tools)).
 
-[image](ncv_image.png)
+![ncv_image](ncv_image.png)
 
 ## Installation
 
@@ -17,7 +17,7 @@ $ pip install git+https://github.com/ncaptier/nested_cross_val#egg=nested_cross_
 
 ## Experiments
 
-We provide a jupyter notebook for an illustration of our nested cross-validation pipeline with real data:
+We provide a jupyter notebook for an illustration of our nested cross-validation pipeline with real data :   
 *[Classification of lung cancer subtype from bulk transcriptomics data](lung_cancer_classification.ipynb)
 
 ## Data
