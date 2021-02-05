@@ -15,7 +15,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires = [
         "dask-ml >= 1.7.0",
-        "joblib == 0.16.0",
+        "joblib >= 0.16.0",
         "matplotlib >= 3.2.2",
         "numpy >= 1.18.5",
         "pandas >= 1.0.5",
