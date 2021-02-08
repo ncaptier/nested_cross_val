@@ -221,14 +221,9 @@ def plot_PR(ncv , method = "predict_proba" , ax = None):
             fig, ax = plt.subplots(figsize = (10 , 6))
         
     i = 0
-    mean_recall = np.linspace(0, 1, 100)
-    precs = []
     aps = []
     for scores , y_test in ncv.get_probas(method = method): 
         prec, recall, _ = metrics.precision_recall_curve(y_test , scores) 
-        interp_prec = np.interp(mean_recall, np.flip(recall), np.flip(prec))
-        interp_prec[0] = 1.0
-        precs.append(interp_prec)
         try :
             ap = ncv.outer_results_['test_average_precision'][i]
         except KeyError :
@@ -236,15 +231,7 @@ def plot_PR(ncv , method = "predict_proba" , ax = None):
         aps.append(ap)
         ax.plot(recall , prec , label = 'out fold ' +str(i) +'  AP = ' + str(np.round(ap , 3) ))
         i += 1
-    
-    mean_prec = np.mean(precs, axis=0)
-    ax.plot(mean_recall, mean_prec, color='b', lw = 2 , label = 'Mean PR mean_AP = ' + str(np.round(np.mean(aps) , 3)))
-    
-    std_prec = np.std(precs, axis=0)
-    precs_upper = np.minimum(mean_prec + std_prec, 1)
-    precs_lower = np.maximum(mean_prec - std_prec, 0)
-    ax.fill_between(mean_recall, precs_lower, precs_upper, color='grey', alpha=.2, label=r'$\pm$ 1 std. dev.')
-    
+        
     ax.legend()
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
