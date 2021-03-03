@@ -76,11 +76,17 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
         The default is False.
     
     scheduler : string, callable, Client, or None, optionnal.
-       The dask scheduler to use. 
-       See https://ml.dask.org/modules/generated/dask_ml.model_selection.GridSearchCV.html for more details.
-       Only available when library = "dask".
-       The default is None.
-       
+        The dask scheduler to use. 
+        See https://ml.dask.org/modules/generated/dask_ml.model_selection.GridSearchCV.html for more details.
+        Only available when library = "dask".
+        The default is None.
+    
+    verbose : int
+        Controls the verbosity: the higher, the more messages. 
+        
+        If library = "sklearn", see sklearn.model_selection.GridSearchCV for more details.
+        If library = "dask", the computation time for each inner fold is displayed when verbose > 0.
+        
     Attributes
     ----------
             
@@ -114,7 +120,8 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
     
     """
     def __init__(self, estimator, params , cv_inner , cv_outer , scoring_inner , scoring_outer , n_jobs_inner = -1 , 
-                 n_jobs_outer = -1 , refit_estimators = True , randomized = False , library = 'sklearn' , caching = False , scheduler = None):
+                 n_jobs_outer = -1 , refit_estimators = True , randomized = False , library = 'sklearn' , caching = False 
+                 , scheduler = None , verbose = 1):
             
         self.estimator = estimator
         self.params = params
@@ -129,6 +136,7 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
         self.library = library
         self.caching = caching
         self.scheduler = scheduler
+        self.verbose = verbose
     
     def _check_is_fitted(self, method_name):
         if not self.refit_estimators:
@@ -168,9 +176,10 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
         for train , _ in self.cv_outer_.split(X , y):                         
             X_train , y_train = X[train , :] , y[train]  
             start = time.time()
-            inner.fit(X_train , y_train)    
-            minutes, seconds = divmod(time.time() - start, 60)
-            print("inner training out fold " + str(count) + " done !" , "running time (min): " + "{:0>2}:{:05.2f}".format(int(minutes),seconds)) 
+            inner.fit(X_train , y_train)   
+            if self.verbose > 0:
+                minutes, seconds = divmod(time.time() - start, 60)
+                print("inner training out fold " + str(count) + " done !" , "running time (min): " + "{:0>2}:{:05.2f}".format(int(minutes),seconds)) 
             self.inner_results_['out fold ' + str(count)] = inner.cv_results_
             
             #best_params_ attribute is not provided with dask-ml method when refit = False, we need to extract it manually
@@ -210,10 +219,10 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
         
         if self.randomized :
             inner = RandomizedSearchCV(estimator = cv_estimator , param_distributions = self.params , scoring = self.scoring_inner
-                                , cv = self.cv_inner , n_jobs = self.n_jobs_inner , refit = False , verbose = 1)
+                                , cv = self.cv_inner , n_jobs = self.n_jobs_inner , refit = False , verbose = self.verbose)
         else :
             inner = GridSearchCV(estimator = cv_estimator , param_grid = self.params , scoring = self.scoring_inner
-                                , cv = self.cv_inner , n_jobs = self.n_jobs_inner , refit = False , verbose = 1)   
+                                , cv = self.cv_inner , n_jobs = self.n_jobs_inner , refit = False , verbose = self.verbose)   
             
         count = 0        
         for train , _ in self.cv_outer_.split(X , y):                        
