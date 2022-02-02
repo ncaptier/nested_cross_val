@@ -315,6 +315,7 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
             X_train , y_train , X_test , y_test = self.X_[train , :] , self.y_[train] , self.X_[test , :] , self.y_[test]
             estimator = self.best_estimators_[i]
             s.append(_compute_scores(estimator , X_train , y_train , X_test , y_test , scoring))
+            i += 1
         L = list(zip(*s))     
         self.outer_results_.update(_aggregate_score_dicts(L[0], name = 'training'))
         self.outer_results_.update(_aggregate_score_dicts(L[1] , name = 'test'))
@@ -336,6 +337,7 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
         for _ , test in self.cv_outer_.split(self.X_ , self.y_):  
             estimator = self.best_estimators_[i]
             yield(estimator.predict(self.X_[test , :]) , self.y_[test])
+            i += 1
     
     def get_probas(self , method = 'predict_proba'):
         """ Collect confidence values for each estimator in best_estimators_ 
@@ -366,6 +368,7 @@ class NestedCV(BaseEstimator , MetaEstimatorMixin):
             if len(probas.shape) == 2 and probas.shape[1] == 2:
                 probas = probas[: , 1]                
             yield(probas , self.y_[test])
+            i += 1
           
     def get_attributes(self , attribute):
         """ Collect attribute for each estimator in best_estimators_.
