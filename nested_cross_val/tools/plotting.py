@@ -131,7 +131,7 @@ def plot_score(ncv , score_name , display , ax = None , **kwargs):
     return
 
     
-def plot_roc(ncv , method = "predict_proba" ,  ax = None):
+def plot_roc(ncv , method = "predict_proba" ,  plot_outer_folds = True , ax = None):
     """ Plot roc curves
     
     Only available for classifiers
@@ -141,7 +141,11 @@ def plot_roc(ncv , method = "predict_proba" ,  ax = None):
     ncv : NestedCV estimator
     
     method : str {'predict_proba' , 'predict_log_proba' , 'decision_function'}, optional
-            Method to obtain the confidence levels. The default is 'predict_proba'.
+        Method to obtain the confidence levels. The default is 'predict_proba'.
+    
+    plot_outer_folds : bool, optional
+        If True, the ROC curves of all outer folds are plotted. Otherwise only the mean roc
+        curve is plotted. The default is True.
         
     ax : matplotlib.axes, optional
         The default is None.
@@ -172,7 +176,8 @@ def plot_roc(ncv , method = "predict_proba" ,  ax = None):
         except KeyError :
             auc = metrics.roc_auc_score(y_test , scores) 
         aucs.append(auc)
-        ax.plot(fpr , tpr , label = 'out fold ' +str(i) +'  AUC = ' + str(np.round(auc , 3) ))
+        if plot_outer_folds :
+            ax.plot(fpr , tpr , label = 'out fold ' +str(i) +'  AUC = ' + str(np.round(auc , 3) ))
         i += 1
 
     mean_tpr = np.mean(tprs, axis=0)
