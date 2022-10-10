@@ -47,3 +47,6 @@ docs/_build/
 .venv
 venv/
 ENV/
+
+# Data
+data/
