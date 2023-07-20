@@ -5,11 +5,13 @@ from sklearn.base import clone, check_array, BaseEstimator, MetaEstimatorMixin
 from sklearn.ensemble import StackingClassifier, StackingRegressor
 from sklearn.ensemble import VotingClassifier, VotingRegressor
 from sklearn.exceptions import NotFittedError
-from sklearn.linear_model import LogisticRegression
+# from sklearn.linear_model import LogisticRegression
 from sklearn.utils.validation import check_is_fitted
 from tqdm import tqdm
 
-from ._utils import _aggregate_score_dicts, _enumerate, _validate_cv, _fit_out, _compute_scores
+from ._utils import _aggregate_score_dicts, _enumerate, _validate_cv, _fit_out, _compute_scores, CustomStackingRegressor
+
+# from sksurv.linear_model import CoxPHSurvivalAnalysis
 
 
 class NestedCV(BaseEstimator, MetaEstimatorMixin):
@@ -18,9 +20,13 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
     Parameters
     ----------
 
-    estimator : dict.
+    estimators : dict.
+        Dictionary of estimators compatible with sklearn API. Each estimator will be fitted with nested cross-validation
+        (same folds) (e.g. {name_estimator1: estimator1, name_estimator2: estimator2}.
 
-    params : nested dict
+    params : dict.
+        Nested dictionary with the same keys as estimator. Each estimator is associated with a dictionary of
+        hyperparameters to optimize (see sklearn GridSearchCV and RandomizedSearchCV for more details).
 
     cv_inner : int, cross-validation generator or an iterable
         Determines the inner cross-validation splitting strategy. Possible inputs for cv are:
@@ -41,6 +47,11 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
     scoring_outer : str, callable, dict of strings and callables
         Strategy to evaluate the performances of the model in the outer loop. A dictionnary can be used for
         multiple scores.
+
+    ensembling_method : int, {'stacking_classifier', 'stacking_regressor', 'hard_voting_classifier',
+    'soft_voting_regressor', 'voting_regressor'}
+
+    voting_weights :
 
     n_jobs_inner : int, optionnal
         number of jobs to run in parallel for each inner cross-validation step. -1 means using all processors.
@@ -66,7 +77,8 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         The default is None.
 
     verbose : int
-        Controls the verbosity: the higher, the more messages. The computation time for each inner fold is displayed when verbose > 0.
+        Controls the verbosity: the higher, the more messages. The computation time for each inner fold is displayed
+        when verbose > 0.
 
     Attributes
     ----------
@@ -75,11 +87,12 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         Params settings that were selected by cross-validation for each outer train-test split.
 
     best_estimators_ : list
-        Estimators that were selected by cross-validation. If refit_estimators is True each one is refitted on the full training data
-        (i.e with its associated outer train-test split).
+        Estimators that were selected by cross-validation. If refit_estimators is True each one is refitted on the full
+        training data (i.e. with its associated outer train-test split).
 
     inner_results_ : dict
-        Nested dictionary that saves all the results for each inner cross-validation (one for each outer train-test split).
+        Nested dictionary that saves all the results for each inner cross-validation
+       (one for each outer train-test split).
 
     outer_results_ : dict
 
@@ -90,20 +103,21 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         Save the training data for additional computations once the method is fitted.
 
     cv_outer_ : cross-validation generator
-        Save the outer cross-validation shceme (with fixed random state) for additional computations once the method is fitted
+        Save the outer cross-validation shceme (with fixed random state) for additional computations once the method is
+        fitted
 
     Notes
     -----
 
     Dask_ML optimizes computational time and memory during hyperparameter optimization
-    See https://ml.dask.org/hyper-parameter-search.html  and https://ml.dask.org/modules/generated/dask_ml.model_selection.GridSearchCV.html
-    for more details
+    See https://ml.dask.org/hyper-parameter-search.html and
+    https://ml.dask.org/modules/generated/dask_ml.model_selection.GridSearchCV.htm for more details
 
     """
 
     def __init__(self, estimators, params, cv_inner, cv_outer, scoring_inner, scoring_outer, ensembling_method=None,
                  voting_weights=None, n_jobs_inner=-1, n_jobs_outer=-1, refit_estimators=True, randomized=False,
-                 scheduler=None, verbose=1):
+                 scheduler=None, stacking_estimator=None, verbose=1):
 
         self.estimators = estimators
         self.params = params
@@ -119,6 +133,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         self.voting_weights = voting_weights
         self.scheduler = scheduler
         self.verbose = verbose
+        self.stacking_estimator = stacking_estimator
 
     def _check_is_fitted(self, method_name):
         if not self.refit_estimators:
@@ -158,12 +173,12 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
             if self.randomized:
                 inner = dask_RandomizedSearchCV(estimator=cv_estimator, param_distributions=self.params[estim],
-                                                scoring=self.scoring_inner
+                                                scoring=self.scoring_inner, return_train_score=False
                                                 , cv=self.cv_inner_, n_jobs=self.n_jobs_inner, refit=False,
                                                 scheduler=self.scheduler)
             else:
                 inner = dask_GridSearchCV(estimator=cv_estimator, param_grid=self.params[estim],
-                                          scoring=self.scoring_inner
+                                          scoring=self.scoring_inner, return_train_score=False
                                           , cv=self.cv_inner_, n_jobs=self.n_jobs_inner, refit=False,
                                           scheduler=self.scheduler)
 
@@ -297,7 +312,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
                 X_train, y_train, X_test, y_test = X[train, :], y[train], X[test, :], y[test]
                 ensembling = StackingClassifier(
                     estimators=[(key, self.best_estimators_[key][i]) for key in self.best_estimators_.keys()],
-                    final_estimator=LogisticRegression(class_weight='balanced'),
+                    final_estimator=self.stacking_estimator,
                     cv=self.cv_inner_,
                     stack_method='auto',
                     n_jobs=-1)
@@ -310,8 +325,9 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
             for train, test in tqdm(self.cv_outer_.split(X, y), total=self.cv_outer_.get_n_splits(),
                                     desc='Fitting ' + self.ensembling_method, disable=self._disable_tqdm):
                 X_train, y_train, X_test, y_test = X[train, :], y[train], X[test, :], y[test]
-                ensembling = StackingRegressor(
+                ensembling = CustomStackingRegressor(
                     estimators=[(key, self.best_estimators_[key][i]) for key in self.best_estimators_.keys()],
+                    final_estimator=self.stacking_estimator,
                     cv=self.cv_inner_,
                     n_jobs=-1)
                 ensembling.fit(X_train, y_train)
@@ -358,6 +374,9 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
                 ensemble_estimators.append(ensembling)
                 s.append(_compute_scores(ensembling, X_train, y_train, X_test, y_test, self.scoring_outer))
                 i += 1
+
+        else:
+            raise ValueError()
 
         L = list(zip(*s))
         self.outer_results_[self.ensembling_method] = _aggregate_score_dicts(L[0], name='training')
@@ -419,7 +438,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         i = 0
         for _, test in self.cv_outer_.split(self.X_, self.y_):
             estim = self.best_estimators_[estimator][i]
-            yield (estim.predict(self.X_[test, :]), self.y_[test])
+            yield estim.predict(self.X_[test, :]), self.y_[test]
             i += 1
 
     def get_probas(self, estimator, method='predict_proba'):
@@ -429,6 +448,9 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
         Parameters
         ----------
+
+        estimator :
+
         method : str {'predict_proba' , 'predict_log_proba' , 'decision_function'}, optional
             Method to obtain the confidence levels. The default is 'predict_proba'.
 
@@ -450,7 +472,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
             probas = getattr(estim, method)(self.X_[test, :])
             if len(probas.shape) == 2 and probas.shape[1] == 2:
                 probas = probas[:, 1]
-            yield (probas, self.y_[test])
+            yield probas, self.y_[test]
             i += 1
 
     def get_attributes(self, estimator, attribute):
@@ -460,6 +482,9 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
         Parameters
         ----------
+
+        estimator :
+
         attribute : str or callable
             If attribute is a string, it should correspond to a valid attribute of the estimators
             contained in self.best_estimators_.
