@@ -48,10 +48,13 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         Strategy to evaluate the performances of the model in the outer loop. A dictionnary can be used for
         multiple scores.
 
-    ensembling_method : int, {'stacking_classifier', 'stacking_regressor', 'hard_voting_classifier',
-    'soft_voting_regressor', 'voting_regressor'}
+    ensembling_method : str, {'stacking_classifier', 'stacking_regressor', 'hard_voting_classifier',
+    'soft_voting_regressor', 'voting_regressor'}. The default is None.
 
-    voting_weights :
+    voting_weights : "auto" or array-like of shape n_estimators.
+        Define the sequence of weights to weight the prediction of each estimator for hard or soft voting. If
+        `voting_weights = "auto"` weigths will be set as the performance of each estimator estimated with inner-cv.
+        The default is None.
 
     n_jobs_inner : int, optionnal
         number of jobs to run in parallel for each inner cross-validation step. -1 means using all processors.
@@ -69,6 +72,10 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
     randomized : boolean, optionnal
         If True, a randomized search strategy is used. Otherwise, a grid search strategy is used.
+
+    n_iter_randomized: int, optional
+        Number of parameter settings that are sampled in case of a randomized search strategy. Only taken into
+        account when `randomized = True`. The default is 10.
 
     scheduler : string, callable, Client, or None, optionnal.
         The dask scheduler to use.
@@ -117,7 +124,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
     def __init__(self, estimators, params, cv_inner, cv_outer, scoring_inner, scoring_outer, ensembling_method=None,
                  voting_weights=None, n_jobs_inner=-1, n_jobs_outer=-1, refit_estimators=True, randomized=False,
-                 scheduler=None, stacking_estimator=None, verbose=1):
+                 n_iter_randomized=10, scheduler=None, stacking_estimator=None, verbose=1):
 
         self.estimators = estimators
         self.params = params
@@ -125,6 +132,7 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
         self.n_jobs_outer = n_jobs_outer
         self.refit_estimators = refit_estimators
         self.randomized = randomized
+        self.n_iter_randomized = n_iter_randomized
         self.cv_inner = cv_inner
         self.cv_outer = cv_outer
         self.scoring_inner = scoring_inner
@@ -173,9 +181,9 @@ class NestedCV(BaseEstimator, MetaEstimatorMixin):
 
             if self.randomized:
                 inner = dask_RandomizedSearchCV(estimator=cv_estimator, param_distributions=self.params[estim],
-                                                scoring=self.scoring_inner, return_train_score=False
-                                                , cv=self.cv_inner_, n_jobs=self.n_jobs_inner, refit=False,
-                                                scheduler=self.scheduler)
+                                                scoring=self.scoring_inner, return_train_score=False,
+                                                n_iter=self.n_iter_randomized, cv=self.cv_inner_,
+                                                n_jobs=self.n_jobs_inner, refit=False, scheduler=self.scheduler)
             else:
                 inner = dask_GridSearchCV(estimator=cv_estimator, param_grid=self.params[estim],
                                           scoring=self.scoring_inner, return_train_score=False
