@@ -16,6 +16,8 @@ def collect_importances(ncv, estimator, importances, feature_names=None):
     ----------
     ncv : NestedCV estimator
 
+    estimator:
+
     importances : str or callable
         Method to obtain the feature importances (see get_attributes() method of NestedCV).
 
@@ -51,6 +53,8 @@ def collect_meta_importances(ncv, estimator, importances, components, projection
     Parameters
     ----------
     ncv : NestedCV estimator
+
+    estimator:
 
     importances : str or callable
         Method to obtain the feature importances (see get_attributes() method of NestedCV).
