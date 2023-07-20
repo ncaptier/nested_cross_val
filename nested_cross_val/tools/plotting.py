@@ -10,12 +10,14 @@ from ._matthews import mcc_f1_curve, mcc_f1_score
 
 
 def plot_hyperparameters(ncv, estimator, name, discrete=True, ax=None, **kwargs):
-    """ Plot the number of times each value of an hyperparameter has been selected during the inner tunning process.
+    """ Plot the number of times each value of a hyperparameter has been selected during the inner tunning process.
 
     Parameters
     ----------
 
     ncv : NestedCV estimator
+
+    estimator:
 
     name : str
         Name of the hyperparameter. It should be the same as in ncv.best_params_
@@ -63,9 +65,11 @@ def plot_score(ncv, estimator, score_name, display, ax=None, **kwargs):
     ----------
     ncv : NestedCV estimator
 
+    estimator :
+
     score_name : str
 
-    display_method : str {'barplot' , 'boxplot' , 'distribution'}
+    display : str {'barplot' , 'boxplot' , 'distribution'}
 
     ax : matplotlib.axes, optional
         The default is None.
@@ -93,12 +97,14 @@ def plot_score(ncv, estimator, score_name, display, ax=None, **kwargs):
                 ax = ax.flatten()
             except AttributeError:
                 warnings.warn(
-                    "ax should be a numpy array containing at least three matplotlib.axes.Axes objects. It was redefined by default.")
+                    "ax should be a numpy array containing at least three matplotlib.axes.Axes objects. It was "
+                    "redefined by default.")
                 fig, ax = plt.subplots(1, 3, figsize=(30, 6), sharey=True)
             else:
                 if len(ax) < 3:
                     warnings.warn(
-                        "ax is not of the right shape. It should contain at least three matplotlib.axes.Axes objects. It was redefined by default.")
+                        "ax is not of the right shape. It should contain at least three matplotlib.axes.Axes objects. "
+                        "It was redefined by default.")
                     fig, ax = plt.subplots(1, 3, figsize=(30, 6), sharey=True)
         else:
             if not isinstance(ax, matplotlib.axes.Axes):
@@ -146,11 +152,13 @@ def plot_roc(ncv, estimator, method="predict_proba", plot_outer_folds=True, ax=N
     ----------
     ncv : NestedCV estimator
 
+    estimator :
+
     method : str {'predict_proba' , 'predict_log_proba' , 'decision_function'}, optional
         Method to obtain the confidence levels. The default is 'predict_proba'.
 
     plot_outer_folds : bool, optional
-        If True, the ROC curves of all outer folds are plotted. Otherwise only the mean roc
+        If True, the ROC curves of all outer folds are plotted. Otherwise, only the mean roc
         curve is plotted. The default is True.
 
     ax : matplotlib.axes, optional
@@ -214,6 +222,8 @@ def plot_PR(ncv, estimator, method="predict_proba", ax=None):
     ----------
     ncv : NestedCV estimator
 
+    estimator :
+
     method : str {'predict_proba' , 'predict_log_proba' , 'decision_function'}, optional
             Method to obtain the confidence levels. The default is 'predict_proba'.
 
@@ -259,6 +269,8 @@ def plot_mccF1(ncv, estimator, method='predict_proba', ax=None):
     Parameters
     ----------
     ncv : NestedCV estimator
+
+    estimator :
 
     method : str {'predict_proba' , 'predict_log_proba' , 'decision_function'}, optional
             Method to obtain the confidence levels. The default is 'predict_proba'.
@@ -317,22 +329,25 @@ def plot_feature_importances(df, normalize=True, display='all', imp_thr=None, st
         Choose the features that will be displayed. The default is 'all'.
 
         - "all" : all features will be displayed.
-        - "most_important" : only the most important features will be displayed (the importance is defined with the threshold parameter imp_thr).
-          It does not take count of stability, even if a feature is considered important for only one fold, it will be displayed !
-        - "most_stable" : among the most important features only those that are considered important for a "significant number of folds"
-          (defined by the threshold parameter stab_thr) will be displayed.
+        - "most_important" : only the most important features will be displayed (the importance is defined with
+         the threshold parameter imp_thr). It does not take count of stability, even if a feature is considered
+         important for only one fold, it will be displayed !
+        - "most_stable" : among the most important features only those that are considered important for a "significant
+         number of folds" (defined by the threshold parameter stab_thr) will be displayed.
 
     imp_thr : Float or int, optional
         Threshold for feature importances. The default is None.
 
-        - If imp_thr is a float, all the values above this threshold (or the absolute values if handle_negatives is True) will be selected
-        - If imp_thr is an int, for each fold the i highest values (or the absolute values if handle_negatives is True) will be selected
+        - If imp_thr is a float, all the values above this threshold (or the absolute values if handle_negatives
+         is True) will be selected
+        - If imp_thr is an int, for each fold the i highest values (or the absolute values if handle_negatives
+         is True) will be selected
 
     stab_thr : Float between 0 and 1, optional
         Minimum frequency of importance to display the feature. The default is None.
 
-        ex : If stab_thr = 0.5, it means that only the features that are considered important for more than half of the outer folds
-             will be displayed.
+        ex : If stab_thr = 0.5, it means that only the features that are considered important for more than half of
+         the outer folds will be displayed.
 
     handle_negatives : bool, optional
         If True, negatives values are considered important. The default is False
@@ -362,27 +377,45 @@ def plot_feature_importances(df, normalize=True, display='all', imp_thr=None, st
         df.plot.bar(stacked=True, ax=ax)
         ax.set_title("All features", fontsize=14)
 
-    else:
+    elif display == 'most_important':
 
-        def _select_features(col, thresold, handle_negatives):
-            if handle_negatives:
-                if isinstance(thresold, int):
-                    thresold = np.abs(col).sort_values(ascending=False).iloc[thresold]
-                return col.where(np.abs(col) > thresold, 0)
-            else:
-                if isinstance(thresold, int):
-                    thresold = col.sort_values(ascending=False).iloc[thresold]
-                return col.where(col > thresold, 0)
+        # def _select_features(col, thresold, handle_negatives, nb_features):
+        #     if handle_negatives:
+        #         if isinstance(thresold, int):
+        #             thresold = np.abs(col).sort_values(ascending=False).iloc[min(nb_features-1, thresold)]
+        #         return col.where(np.abs(col) > thresold, 0)
+        #     else:
+        #         if isinstance(thresold, int):
+        #             thresold = col.sort_values(ascending=False).iloc[min(nb_features-1, thresold)]
+        #         return col.where(col > thresold, 0)
+        #
+        # df = df.apply(_select_features, thresold=imp_thr, handle_negatives=handle_negatives,
+        #               nb_features=df.shape[0], axis=0)
+        # #temp = df[df.sum(axis=1) > 0]
+        # df.plot.bar(stacked=True, ax=ax, rot=45)
+        # ax.set_title("Most important features of each fold", fontsize=14)
 
-        df = df.apply(_select_features, thresold=imp_thr, handle_negatives=handle_negatives, axis=0)
+        if handle_negatives:
+            temp = (df.sum(axis=1)).abs()
+        else:
+            temp = df.sum(axis=1)
+        if isinstance(imp_thr, int):
+            imp_thr = temp.sort_values(ascending=False).iloc[min(df.shape[0]-1, imp_thr)]
+        elif imp_thr is None:
+            raise ValueError()
+        tempbis = df[temp > imp_thr]
+        tempbis.loc[(tempbis.sum(axis=1)).sort_values().index].plot.barh(stacked=True, ax=ax)
+        ax.set_title("Most important features of each fold", fontsize=14)
 
-        if display == 'most_important':
-            df[df.sum(axis=1) > 0].plot.bar(stacked=True, ax=ax, rot=45)
-            ax.set_title("Most important features of each fold", fontsize=14)
-        elif display == 'most_stable':
-            df[((df > 0).sum(axis=1) / df.shape[1]) >= stab_thr].plot.bar(stacked=True, ax=ax, rot=45)
-            ax.set_title("Most stable important features", fontsize=14)
+    elif display == 'most_stable':
+        if handle_negatives:
+            temp = df[((df.abs() > 0).sum(axis=1) / df.shape[1]) >= stab_thr]
+        else:
+            temp = df[((df > 0).sum(axis=1) / df.shape[1]) >= stab_thr]
+        if len(temp) > 0:
+            temp.loc[(temp.sum(axis=1)).sort_values().index].plot.barh(stacked=True, ax=ax)
+        ax.set_title("Most stable important features", fontsize=14)
 
-        if df.shape[1] > 10:
-            ax.legend().set_visible(False)
+    if df.shape[1] > 10:
+        ax.legend().set_visible(False)
     return
