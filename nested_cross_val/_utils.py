@@ -1,6 +1,14 @@
 import numpy as np
 from sklearn import metrics
 from sklearn.model_selection import check_cv
+from sklearn.ensemble import StackingRegressor
+
+
+class CustomStackingRegressor(StackingRegressor):
+
+    def score(self, X, y, sample_weight=None):
+        Xpred = self.transform(X)
+        return self.final_estimator_.score(Xpred, y)
 
 
 def _fit_out(estimator, X, y, train, test, scoring):
